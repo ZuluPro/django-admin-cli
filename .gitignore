@@ -1,0 +1,9 @@
+.vagrant/
+build/
+dist/
+.tox/
+*.py[co]
+*.sw[po]
+*.DS_Store
+.idea/
+.coverage
