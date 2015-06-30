@@ -12,18 +12,15 @@ from django.utils.timezone import now
 from django.utils.dateformat import format as strftime
 from django.template.defaultfilters import striptags
 
-from optparse import make_option
-from os import devnull
-import sys
-
 REGISTRY = admin.site._registry
 MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
+ACTIONS = ('list', 'delete')
 
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('model', nargs=1, type=str, choices=MODEL_NAMES)
-        parser.add_argument('action', type=str)
+        parser.add_argument('action', type=str, choices=ACTIONS)
         # Can't use below with Django < 1.8
         parser.add_argument('-f', '--field', type=str, action='append')
         parser.add_argument('-F', '--filter', type=str, action='append')
@@ -105,6 +102,20 @@ class Command(BaseCommand):
             row = row_template.format(*values)
             self.stdout.write(row)
 
+    def _delete(self, modeladmin, filters={}, confirm=True):
+        for obj in modeladmin.model.objects.filter(**filters):
+            if confirm:
+                res = raw_input("Delete '%s' ? [Yes|No|All|Cancel] " % obj)\
+                    .lower()
+                if res.startswith('n'):
+                    continue
+                elif res.startswith('c'):
+                    break
+                elif res.startswith('a'):
+                    confirm = False
+            # obj.delete()
+            self.stdout.write("Deleted '%s'" % obj)
+
     def handle(self, *args, **opts):
         model_name = opts['model'][0] if django.VERSION[1] < 7 else args[0]
         action = opts['action'][0] if django.VERSION[1] < 7 else args[1]
@@ -112,4 +123,7 @@ class Command(BaseCommand):
         filters = dict([f.split('=') for f in opts.get('filter', [])])
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
-        self._list(modeladmin, fields, filters)
+        if action == 'list':
+            self._list(modeladmin, fields, filters)
+        elif action == 'delete':
+            self._delete(modeladmin, filters)
