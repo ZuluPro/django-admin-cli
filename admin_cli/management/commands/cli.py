@@ -14,7 +14,7 @@ from django.template.defaultfilters import striptags
 
 REGISTRY = admin.site._registry
 MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
-ACTIONS = ('list', 'delete', 'add',)
+ACTIONS = ('list', 'delete', 'add', 'update',)
 
 
 class Command(BaseCommand):
@@ -107,7 +107,7 @@ class Command(BaseCommand):
             if confirm:
                 res = raw_input("Delete '%s' ? [Yes|No|All|Cancel] " % obj)\
                     .lower()
-                if res.startswith('n'):
+                if not res or res.startswith('n'):
                     continue
                 elif res.startswith('c'):
                     break
@@ -117,7 +117,11 @@ class Command(BaseCommand):
             self.stdout.write("Deleted '%s'" % obj)
 
     def _add(self, modeladmin, fields):
-        initial = vars(modeladmin.model())
+        instance = modeladmin.model()
+        initial = dict([
+            (field.name, getattr(instance, field.name))
+            for field in modeladmin.model._meta.fields
+        ])
         used_fields = dict([f.split('=') for f in fields])
         data = initial.copy()
         data.update(used_fields)
@@ -140,10 +144,30 @@ class Command(BaseCommand):
             ])
             raise CommandError(error_msg)
 
+    def _update(self, modeladmin, fields, filters={}, confirm=True):
+        for obj in modeladmin.model.objects.filter(**filters):
+            if confirm:
+                res = raw_input("Update '%s' ? [Yes|No|All|Cancel] " % obj)\
+                    .lower()
+                if not res or res.startswith('n'):
+                    continue
+                elif res.startswith('c'):
+                    break
+                elif res.startswith('a'):
+                    confirm = False
+            try:
+                filtr = {obj._meta.pk.name: getattr(obj, obj._meta.pk.name)}
+                modeladmin.model.objects.filter(**filtr).update(**fields)
+                obj = modeladmin.model.objects.get(**filtr)
+                self.stdout.write("Updated '%s'" % obj)
+            except Exception as err:
+                self.stderr.write("%s: %s" % (err.__class__.__name__, err.args[0]))
+
     def handle(self, *args, **opts):
         model_name = opts['model'][0] if django.VERSION[1] <= 8 else args[0]
         action = opts['action'] if django.VERSION[1] <= 8 else args[1]
         fields = opts.get('field', []) or []
+        fields_dict = dict([f.split('=') for f in fields])
         filters = opts.get('filter', []) or []
         filters_dict = dict([f.split('=') for f in filters])
         model = self._get_model(model_name)
@@ -154,3 +178,5 @@ class Command(BaseCommand):
             self._delete(modeladmin, filters_dict)
         elif action == 'add':
             self._add(modeladmin, fields)
+        elif action == 'update':
+            self._update(modeladmin, fields_dict, filters_dict)
