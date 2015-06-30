@@ -30,6 +30,7 @@ class Command(BaseCommand):
         # Can't use below with Django < 1.8
         parser.add_argument('-f', '--field', type=str, action='append')
         parser.add_argument('-F', '--filter', type=str, action='append')
+        parser.add_argument('-i', '--noinput', action='store_true')
 
     def _get_model(self, name):
         return [m for m in REGISTRY if m._meta.model_name == name][0]
@@ -111,6 +112,7 @@ class Command(BaseCommand):
     def _delete(self, modeladmin, filters={}, confirm=True):
         for obj in modeladmin.model.objects.filter(**filters):
             if confirm:
+                # TODO: Declare related element
                 res = raw_input("Delete '%s' ? [Yes|No|All|Cancel] " % obj)\
                     .lower()
                 if not res or res.startswith('n'):
@@ -200,6 +202,7 @@ class Command(BaseCommand):
         action = opts['action'] if django.VERSION >= (1, 8) else args[1]
         fields = opts.get('field', []) or []
         filters = opts.get('filter', []) or []
+        confirm = not opts.get('noinput', False)
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
         if action == 'list':
@@ -207,13 +210,13 @@ class Command(BaseCommand):
             self._list(modeladmin, fields, filters_dict)
         elif action == 'delete':
             filters_dict = dict([f.split('=') for f in filters])
-            self._delete(modeladmin, filters_dict)
+            self._delete(modeladmin, filters_dict, confirm)
         elif action == 'add':
             self._add(modeladmin, fields)
         elif action == 'update':
             fields_dict = dict([f.split('=') for f in fields])
             filters_dict = dict([f.split('=') for f in filters])
             self._list(modeladmin, fields, filters_dict)
-            self._update(modeladmin, fields_dict, filters_dict)
+            self._update(modeladmin, fields_dict, filters_dict, confirm)
         elif action == 'describe':
             self._describe(modeladmin)

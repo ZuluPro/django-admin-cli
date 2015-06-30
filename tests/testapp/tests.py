@@ -1,4 +1,4 @@
-# from mock import patch
+from mock import patch
 try:
     from StringIO import StringIO
 except ImportError: # Py3
@@ -8,12 +8,9 @@ from django.test import TestCase
 from django.core.management import call_command
 from django.conf import settings as se
 from django.utils.timezone import now
-from django.utils import six
 
 from admin_cli.management.commands.cli import Command
 from testapp import models
-
-unicode = str if six.PY3 else unicode
 
 
 class ListTest(TestCase):
@@ -54,11 +51,63 @@ class ListTest(TestCase):
         ins = models.ManyToManyModel.objects.create()
         ins.field.add(m2m)
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
+
+    def test_list_str(self):
+        fk = models.CharModel.objects.create(field='FOO')
+        models.ForeignKeyModel.objects.create(field=fk)
+        call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
+
+
+class DeleteAnswerTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+        self.obj = models.CharModel.objects.create(field='FOO')
+
+    @patch('__builtin__.raw_input', return_value='y')
+    def test_answer_yes(self, *args):
+        call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
+        self.assertEqual(0, models.CharModel.objects.count())
+
+    @patch('__builtin__.raw_input', return_value='n')
+    def test_answer_no(self, *args):
+        call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
+        self.assertEqual(1, models.CharModel.objects.count())
+
+    @patch('__builtin__.raw_input', return_value='a')
+    def test_answer_all(self, *args):
+        models.CharModel.objects.create(field='FOO')
+        call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
+        self.assertEqual(0, models.CharModel.objects.count())
+
+    @patch('__builtin__.raw_input', return_value='c')
+    def test_answer_cancel(self, *args):
+        models.CharModel.objects.create(field='FOO')
+        call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
+        self.assertEqual(2, models.CharModel.objects.count())
+
+    def test_noinput(self, *args):
+        call_command('cli', 'charmodel', 'delete', noinput=True, stdout=self.stdout)
+        self.assertEqual(0, models.CharModel.objects.count())
+
+
+class DeleteFilterTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+        self.obj = models.CharModel.objects.create(field='FOO')
+
+    @patch('__builtin__.raw_input', return_value='a')
+    def test_dont_match(self, *args):
+        call_command('cli', 'charmodel', 'delete', filter=['field=BAR'], stdout=self.stdout)
+        self.assertEqual(1, models.CharModel.objects.count())
+
+    @patch('__builtin__.raw_input', return_value='a')
+    def test_match(self, *args):
+        call_command('cli', 'charmodel', 'delete', filter=['field=FOO'], stdout=self.stdout)
+        self.assertEqual(0, models.CharModel.objects.count())
 # 
 # 
 # @patch('lor.templatetags.lor.USE_LOCAL_URLS', True)
 # class LogUrlLocalTest(TestCase):
-#     @patch('__builtin__.raw_input', return_value='y')
 #     def test_local_url(self):
 #         self.assertEqual(lor_url('testfile'), '/static/testfile.txt')
 # 
