@@ -10,6 +10,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.timezone import now
 from django.utils.dateformat import format as strftime
+from django.utils import six
 from django.template.defaultfilters import striptags
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
@@ -19,6 +20,7 @@ MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
 ACTIONS = ('list', 'delete', 'add', 'update', 'describe')
 FACTORY = RequestFactory(user=AnonymousUser())
 FALSE_REQ = FACTORY.get('')
+unicode = str if six.PY3 else unicode
 
 
 class Command(BaseCommand):

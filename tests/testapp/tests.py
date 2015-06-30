@@ -1,13 +1,19 @@
 # from mock import patch
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError: # Py3
+    from io import StringIO
 
 from django.test import TestCase
 from django.core.management import call_command
 from django.conf import settings as se
 from django.utils.timezone import now
+from django.utils import six
 
 from admin_cli.management.commands.cli import Command
 from testapp import models
+
+unicode = str if six.PY3 else unicode
 
 
 class ListTest(TestCase):

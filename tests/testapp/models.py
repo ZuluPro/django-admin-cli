@@ -18,7 +18,7 @@ class TextModel(models.Model):
 
 
 class BooleanModel(models.Model):
-    field = models.BooleanField()
+    field = models.BooleanField(default=False)
 
 
 class DateModel(models.Model):

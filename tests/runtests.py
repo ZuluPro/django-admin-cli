@@ -4,7 +4,6 @@ import os
 import sys
 import django
 from django.conf import settings
-from django.test.runner import DiscoverRunner
 from django.core.management import call_command
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +24,10 @@ INSTALLED_APPS = (
     'admin_cli',
 )
 
+
 settings.configure(
+    MIDDLEWARE_CLASSES=(),
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}},
     INSTALLED_APPS=INSTALLED_APPS,
     DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}},
     ROOT_URLCONF='testapp.urls',
@@ -39,6 +41,9 @@ def main():
         django.setup()
     if not os.path.exists(os.path.join(here, 'testapp/migrations/0001_initial.py')):
         call_command('makemigrations')
+    from django.contrib import admin
+    admin.autodiscover()
+    from django.test.runner import DiscoverRunner
     runner = DiscoverRunner(failfast=True, verbosity=int(os.environ.get('DJANGO_DEBUG', 1)))
     failures = runner.run_tests(['testapp'], interactive=True)
     sys.exit(failures)
