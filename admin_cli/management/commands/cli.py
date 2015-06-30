@@ -166,6 +166,7 @@ class Command(BaseCommand):
     def _describe(self, modeladmin):
         columns = ('Name (Verbose)', 'Type', 'Null', 'Blank', 'Choices', 'Default', 'Help text')
         row_template = '{:30} {:15} {:<5} {:<5} {:<20} {:<15} {:30}'
+        self.stdout.write('MODEL:')
         self.stdout.write(row_template.format(*columns))
         for field in modeladmin.model._meta.fields:
             self.stdout.write(row_template.format(
@@ -175,6 +176,18 @@ class Command(BaseCommand):
                 str(field.choices)[:20],
                 self._get_field_value(modeladmin, field.name, modeladmin.model()),
                 field.help_text))
+        if modeladmin.actions:
+            self.stdout.write('\n')
+            self._get_actions(modeladmin)
+
+    def _get_actions(self, modeladmin):
+        columns = ('Name', 'Description')
+        row_template = '{:30} {:30}'
+        self.stdout.write('ACTIONS:')
+        self.stdout.write(row_template.format(*columns))
+        for action in modeladmin.actions:
+            self.stdout.write(row_template.format(
+                action, getattr(modeladmin, action).short_description))
 
     def handle(self, *args, **opts):
         model_name = opts['model'][0] if django.VERSION[1] <= 8 else args[0]
