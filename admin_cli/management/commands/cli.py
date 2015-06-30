@@ -14,7 +14,7 @@ from django.template.defaultfilters import striptags
 
 REGISTRY = admin.site._registry
 MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
-ACTIONS = ('list', 'delete', 'add', 'update',)
+ACTIONS = ('list', 'delete', 'add', 'update', 'describe')
 
 
 class Command(BaseCommand):
@@ -163,6 +163,19 @@ class Command(BaseCommand):
             except Exception as err:
                 self.stderr.write("%s: %s" % (err.__class__.__name__, err.args[0]))
 
+    def _describe(self, modeladmin):
+        columns = ('Name (Verbose)', 'Type', 'Null', 'Blank', 'Choices', 'Default', 'Help text')
+        row_template = '{:30} {:15} {:<5} {:<5} {:<20} {:<15} {:30}'
+        self.stdout.write(row_template.format(*columns))
+        for field in modeladmin.model._meta.fields:
+            self.stdout.write(row_template.format(
+                ('%s (%s)' % (field.name, field.verbose_name)),
+                field.__class__.__name__ if 'django.db.models' in field.__class__.__module__ else '%s.%s' % (field.__class__.__module__, field.__class__.__name__),
+                bool(field.null), bool(field.blank),
+                str(field.choices)[:20],
+                self._get_field_value(modeladmin, field.name, modeladmin.model()),
+                field.help_text))
+
     def handle(self, *args, **opts):
         model_name = opts['model'][0] if django.VERSION[1] <= 8 else args[0]
         action = opts['action'] if django.VERSION[1] <= 8 else args[1]
@@ -180,3 +193,5 @@ class Command(BaseCommand):
             self._add(modeladmin, fields)
         elif action == 'update':
             self._update(modeladmin, fields_dict, filters_dict)
+        elif action == 'describe':
+            self._describe(modeladmin)
