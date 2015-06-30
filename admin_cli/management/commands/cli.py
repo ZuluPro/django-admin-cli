@@ -3,12 +3,14 @@ Group management commands module.
 """
 from datetime import datetime, date
 
+import django
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib import admin
 from django.db import models
 from django.conf import settings
 from django.utils.timezone import now
 from django.utils.dateformat import format as strftime
+from django.template.defaultfilters import striptags
 
 from optparse import make_option
 from os import devnull
@@ -20,9 +22,11 @@ MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        parser.add_argument('model', nargs=1, type=str, required=True,
-                            choices=MODEL_NAMES)
-        parser.add_argument('action', type=str, required=True)
+        parser.add_argument('model', nargs=1, type=str, choices=MODEL_NAMES)
+        parser.add_argument('action', type=str)
+        # Can't use below with Django < 1.8
+        parser.add_argument('-f', '--field', type=str, action='append')
+        parser.add_argument('-F', '--filter', type=str, action='append')
 
     def _get_model(self, name):
         return [m for m in REGISTRY if m._meta.model_name == name][0]
@@ -39,7 +43,7 @@ class Command(BaseCommand):
     def _get_field_width(self, modeladmin, field):
         field_obj = self._get_field_object(modeladmin, field)
         if isinstance(field_obj, models.CharField):
-            return min(20, max(field_obj.max_length+1, len(field_obj.verbose_name)))
+            return min(30, max(field_obj.max_length+1, len(field_obj.verbose_name)))
         elif isinstance(field_obj, models.BooleanField):
             return max(6, len(self._get_field_name(modeladmin, field))+1)
         elif isinstance(field_obj, models.DateTimeField):
@@ -74,33 +78,38 @@ class Command(BaseCommand):
                 value = strftime(value, settings.SHORT_DATETIME_FORMAT)
             elif isinstance(value, date):
                 value = strftime(value, settings.SHORT_DATE_FORMAT)
+            elif value.__class__.__name__ == 'ManyRelatedManager':
+                value = ','.join([str(a) for a in value.all()])
         else:
-            value = '?'
+            value = 'N/A'
         if hasattr(value, '__call__'):
             value = value(obj)
         try:
             value = str(value).replace('\n', '')
+            value = striptags(value)
         except:
             pass
         return value
 
-    def _list(self, modeladmin):
-        fields = modeladmin.list_display
+    def _list(self, modeladmin, fields=[], filters={}):
+        fields = fields or modeladmin.list_display
         field_names = [self._get_field_name(modeladmin, f) for f in fields]
         row_template = ''
         for field in fields:
             width = self._get_field_width(modeladmin, field)
             row_template += '{:%i}' % width
         self.stdout.write(row_template.format(*field_names))
-        for obj in modeladmin.model.objects.all():
+        for obj in modeladmin.model.objects.filter(**filters):
             values = [self._get_field_value(modeladmin, field, obj)
                       for field in fields]
             row = row_template.format(*values)
             self.stdout.write(row)
 
     def handle(self, *args, **opts):
-        model_name = args[0]
-        action = args[1]
+        model_name = opts['model'][0] if django.VERSION[1] < 7 else args[0]
+        action = opts['action'][0] if django.VERSION[1] < 7 else args[1]
+        fields = opts.get('field')
+        filters = dict([f.split('=') for f in opts.get('filter', [])])
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
-        self._list(modeladmin)
+        self._list(modeladmin, fields, filters)
