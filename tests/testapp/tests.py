@@ -1,4 +1,4 @@
-from mock import patch
+# from mock import patch
 from StringIO import StringIO
 
 from django.test import TestCase
