@@ -14,7 +14,7 @@ from django.template.defaultfilters import striptags
 
 REGISTRY = admin.site._registry
 MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
-ACTIONS = ('list', 'delete')
+ACTIONS = ('list', 'delete', 'add',)
 
 
 class Command(BaseCommand):
@@ -113,17 +113,44 @@ class Command(BaseCommand):
                     break
                 elif res.startswith('a'):
                     confirm = False
-            # obj.delete()
+            obj.delete()
             self.stdout.write("Deleted '%s'" % obj)
 
+    def _add(self, modeladmin, fields):
+        initial = vars(modeladmin.model())
+        used_fields = dict([f.split('=') for f in fields])
+        data = initial.copy()
+        data.update(used_fields)
+        for field_name, value in data.items():
+            try:
+                modelfield = modeladmin.model._meta.get_field(field_name)
+            except models.FieldDoesNotExist:
+                continue
+            if isinstance(modelfield, models.ManyToManyField):
+                data[field_name] = value.split(',')
+        form = modeladmin.form(data=data)
+        if form.is_valid():
+            obj = form.save()
+            self.stdout.write("Created '%s'" % obj)
+        else:
+            error_msg = '\n'+'\n'.join([
+                ('%s: %s' % (field, err))
+                for field in form.errors
+                for err in form.errors[field]
+            ])
+            raise CommandError(error_msg)
+
     def handle(self, *args, **opts):
-        model_name = opts['model'][0] if django.VERSION[1] < 7 else args[0]
-        action = opts['action'][0] if django.VERSION[1] < 7 else args[1]
-        fields = opts.get('field')
-        filters = dict([f.split('=') for f in opts.get('filter', [])])
+        model_name = opts['model'][0] if django.VERSION[1] <= 8 else args[0]
+        action = opts['action'] if django.VERSION[1] <= 8 else args[1]
+        fields = opts.get('field', []) or []
+        filters = opts.get('filter', []) or []
+        filters_dict = dict([f.split('=') for f in filters])
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
         if action == 'list':
-            self._list(modeladmin, fields, filters)
+            self._list(modeladmin, fields, filters_dict)
         elif action == 'delete':
-            self._delete(modeladmin, filters)
+            self._delete(modeladmin, filters_dict)
+        elif action == 'add':
+            self._add(modeladmin, fields)
