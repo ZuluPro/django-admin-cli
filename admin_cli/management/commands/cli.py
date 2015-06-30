@@ -11,10 +11,14 @@ from django.conf import settings
 from django.utils.timezone import now
 from django.utils.dateformat import format as strftime
 from django.template.defaultfilters import striptags
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory
 
 REGISTRY = admin.site._registry
 MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
 ACTIONS = ('list', 'delete', 'add', 'update', 'describe')
+FACTORY = RequestFactory(user=AnonymousUser())
+FALSE_REQ = FACTORY.get('')
 
 
 class Command(BaseCommand):
@@ -132,7 +136,7 @@ class Command(BaseCommand):
                 continue
             if isinstance(modelfield, models.ManyToManyField):
                 data[field_name] = value.split(',')
-        form = modeladmin.form(data=data)
+        form = modeladmin.get_form(FALSE_REQ)(data=data)
         if form.is_valid():
             obj = form.save()
             self.stdout.write("Created '%s'" % obj)
@@ -193,18 +197,21 @@ class Command(BaseCommand):
         model_name = opts['model'][0] if django.VERSION[1] <= 8 else args[0]
         action = opts['action'] if django.VERSION[1] <= 8 else args[1]
         fields = opts.get('field', []) or []
-        fields_dict = dict([f.split('=') for f in fields])
         filters = opts.get('filter', []) or []
-        filters_dict = dict([f.split('=') for f in filters])
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
         if action == 'list':
+            filters_dict = dict([f.split('=') for f in filters])
             self._list(modeladmin, fields, filters_dict)
         elif action == 'delete':
+            filters_dict = dict([f.split('=') for f in filters])
             self._delete(modeladmin, filters_dict)
         elif action == 'add':
             self._add(modeladmin, fields)
         elif action == 'update':
+            fields_dict = dict([f.split('=') for f in fields])
+            filters_dict = dict([f.split('=') for f in filters])
+            self._list(modeladmin, fields, filters_dict)
             self._update(modeladmin, fields_dict, filters_dict)
         elif action == 'describe':
             self._describe(modeladmin)
