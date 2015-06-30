@@ -194,8 +194,8 @@ class Command(BaseCommand):
                 action, getattr(modeladmin, action).short_description))
 
     def handle(self, *args, **opts):
-        model_name = opts['model'][0] if django.VERSION[1] <= 8 else args[0]
-        action = opts['action'] if django.VERSION[1] <= 8 else args[1]
+        model_name = opts['model'][0] if django.VERSION >= (1, 8) else args[0]
+        action = opts['action'] if django.VERSION >= (1, 8) else args[1]
         fields = opts.get('field', []) or []
         filters = opts.get('filter', []) or []
         model = self._get_model(model_name)
