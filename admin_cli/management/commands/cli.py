@@ -30,17 +30,48 @@ else:  # pragma: no cover
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        parser.add_argument('model', nargs=1, type=str, choices=MODEL_NAMES)
-        parser.add_argument('action', type=str, choices=ACTIONS)
-        # Can't use below with Django < 1.8
-        parser.add_argument('-f', '--field', type=str, action='append')
-        parser.add_argument('-F', '--filter', type=str, action='append')
-        parser.add_argument('-i', '--noinput', action='store_true')
+        parser.add_argument('model', nargs=1, type=str, choices=MODEL_NAMES,
+                            help="Model to manage")
+        parser.add_argument('action', type=str, choices=ACTIONS,
+                            help="Action to run")
+        parser.add_argument('-f', '--field', type=str, action='append',
+                            help="Field to add/update")
+        parser.add_argument('-F', '--filter', type=str, action='append',
+                            help="Field to filter in Django's lookup form, \
+                            example: 'id=1' or 'name__startswith=A'")
+        parser.add_argument('-i', '--noinput', action='store_true',
+                            help="Tells Django to NOT prompt the user for \
+                            input of any kind.")
 
     def _get_model(self, name):
-        return [m for m in REGISTRY if m._meta.model_name == name][0]
+        """
+        Get a registered model from its name.
+
+        :param name: Model's name
+        :type name: ``str``
+
+        :returns: Model class
+        :rtype: :class:`models.Model`
+
+        :raises: CommandError: If model is not registered in admin
+        """
+        try:
+            return [m for m in REGISTRY if m._meta.model_name == name][0]
+        except IndexError:
+            raise CommandError("Can't find model '%s' in admin registry")
 
     def _get_field_object(self, modeladmin, field):
+        """
+        Get the ``object`` defined by ``field``.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param field: Name of attribute, example ``'__str__'`` or ``'id'``
+        :type field: ``str``
+
+        :returns: :class:`admin.ModelAdmin` or :class:`models.Model`'s attribute'
+        """
         if hasattr(modeladmin, field):
             obj = getattr(modeladmin, field)
         elif field in modeladmin.model._meta.get_all_field_names():
@@ -50,6 +81,18 @@ class Command(BaseCommand):
         return obj
 
     def _get_field_width(self, modeladmin, field):
+        """
+        Try to define a column width from ``field`` string.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param field: Name of attribute, example ``'__str__'`` or ``'id'``
+        :type field: ``str``
+
+        :returns: Column's width
+        :rtype: ``int``
+        """
         field_obj = self._get_field_object(modeladmin, field)
         if isinstance(field_obj, models.CharField):
             return min(30, max(field_obj.max_length+1, len(field_obj.verbose_name)))
@@ -63,6 +106,18 @@ class Command(BaseCommand):
             return 21
 
     def _get_field_name(self, modeladmin, field):
+        """
+        Get a verbose name from ``field`` string.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param field: Name of attribute, example ``'__str__'`` or ``'id'``
+        :type field: ``str``
+
+        :returns: Verbose name of attribute
+        :rtype: ``str``
+        """
         if field in ('__str__', '__unicode__'):
             name = unicode(modeladmin.model._meta.verbose_name)
         elif field in modeladmin.model._meta.get_all_field_names():
@@ -76,8 +131,24 @@ class Command(BaseCommand):
         return name.capitalize()
 
     def _get_field_value(self, modeladmin, field, obj):
+        """
+        Get a value from ``field`` string.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param field: Name of attribute, example ``'__str__'`` or ``'id'``
+        :type field: ``str``
+
+        :param obj: Instance of model
+        :type obj: :class:`models.Model`
+
+        :returns: Value of attribute, called if callable
+        :rtype: Trying ``str``
+        """
         if field.startswith('__'):
             value = getattr(obj, field)()
+        # Django 1.6 doesn't support get empty FK
         elif django.VERSION < (1, 7) and field in obj._meta.get_all_field_names() and isinstance(obj._meta.get_field(field), models.ForeignKey):  # pragma: no cover
             value = getattr(obj, obj._meta.get_field(field).attname)
         elif hasattr(modeladmin, field):
@@ -93,10 +164,12 @@ class Command(BaseCommand):
         else:
             value = 'N/A'
         if hasattr(value, '__call__'):
+            # Some callable new instance as arg
             try:
                 value = value(obj)
             except TypeError:
                 value = value()
+        # Remove HTML and new lines
         try:
             value = str(value).replace('\n', '')
             value = striptags(value)
@@ -105,6 +178,19 @@ class Command(BaseCommand):
         return value
 
     def _list(self, modeladmin, fields=[], filters={}):
+        """
+        Write instances filtered and with chosen attributes.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param fields: Fields to display, can be a :class:`admin.ModelAdmin`
+                       or :class:`models.Model` attribute
+        :type fields: ``dict``
+
+        :param filters: Lookups for filters
+        :type filters: ``dict``
+        """
         fields = fields or modeladmin.list_display
         field_names = [self._get_field_name(modeladmin, f) for f in fields]
         row_template = ''
@@ -119,6 +205,18 @@ class Command(BaseCommand):
             self.stdout.write(row)
 
     def _delete(self, modeladmin, filters={}, confirm=True):
+        """
+        Delete one or more instances filtered.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param filters: Lookups for filters
+        :type filters: ``dict``
+
+        :param confirm: Ask confirmation before make operation
+        :type confirm: ``bool``
+        """
         for obj in modeladmin.model.objects.filter(**filters):
             if confirm:
                 # TODO: Declare related element
@@ -134,6 +232,17 @@ class Command(BaseCommand):
             self.stdout.write("Deleted '%s'" % obj)
 
     def _add(self, modeladmin, fields):
+        """
+        Update one or more fields of all instances filtered.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param fields: Fields to defines
+        :type fields: ``dict``
+
+        :raises CommandError: If data is unvalid
+        """
         instance = modeladmin.model()
         initial = dict([
             (field.name, getattr(instance, field.name))
@@ -162,6 +271,21 @@ class Command(BaseCommand):
             raise CommandError(error_msg)
 
     def _update(self, modeladmin, fields, filters={}, confirm=True):
+        """
+        Update one or more fields of all instances filtered.
+
+        :param modeladmin: ModelAdmin of model
+        :type modeladmin: :class:`admin.ModelAdmin`
+
+        :param fields: Fields to update
+        :type fields: ``dict``
+
+        :param filters: Lookups for filters
+        :type filters: ``dict``
+
+        :param confirm: Ask confirmation before make operation
+        :type confirm: ``bool``
+        """
         for obj in modeladmin.model.objects.filter(**filters):
             if confirm:
                 res = raw_input("Update '%s' ? [Yes|No|All|Cancel] " % obj)\
@@ -181,6 +305,13 @@ class Command(BaseCommand):
                 self.stderr.write("%s: %s" % (err.__class__.__name__, err.args[0]))
 
     def _describe(self, modeladmin):
+        """
+        Write description of a :class:`admin.ModelAdmin`, with model's fields
+        and actions.
+
+        :param modeladmin: ModelAdmin to describe
+        :type modeladmin: :class:`admin.ModelAdmin`
+        """
         columns = ('Name (Verbose)', 'Type', 'Null', 'Blank', 'Choices', 'Default', 'Help text')
         row_template = '{:30} {:15} {:<5} {:<5} {:<20} {:<15} {:30}'
         self.stdout.write('MODEL:')
@@ -198,6 +329,12 @@ class Command(BaseCommand):
             self._get_actions(modeladmin)
 
     def _get_actions(self, modeladmin):
+        """
+        Write modeladmin's custom actions.
+
+        :param modeladmin: ModelAdmin owning actions
+        :type modeladmin: :class:`admin.ModelAdmin`
+        """
         columns = ('Name', 'Description')
         row_template = '{!s:30} {!s:30}'
         self.stdout.write('ACTIONS:')
