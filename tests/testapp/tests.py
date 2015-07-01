@@ -65,23 +65,28 @@ class DeleteAnswerTest(TestCase):
         self.stdout = StringIO()
         self.obj = models.CharModel.objects.create(field='FOO')
 
-    @patch('__builtin__.raw_input', return_value='y')
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='y')
     def test_answer_yes(self, *args):
         call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
         self.assertEqual(0, models.CharModel.objects.count())
 
-    @patch('__builtin__.raw_input', return_value='n')
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='n')
     def test_answer_no(self, *args):
         call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
         self.assertEqual(1, models.CharModel.objects.count())
 
-    @patch('__builtin__.raw_input', return_value='a')
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='n')
+    def test_answer_empty(self, *args):
+        call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
+        self.assertEqual(1, models.CharModel.objects.count())
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
     def test_answer_all(self, *args):
         models.CharModel.objects.create(field='FOO')
         call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
         self.assertEqual(0, models.CharModel.objects.count())
 
-    @patch('__builtin__.raw_input', return_value='c')
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='c')
     def test_answer_cancel(self, *args):
         models.CharModel.objects.create(field='FOO')
         call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
@@ -97,12 +102,12 @@ class DeleteFilterTest(TestCase):
         self.stdout = StringIO()
         self.obj = models.CharModel.objects.create(field='FOO')
 
-    @patch('__builtin__.raw_input', return_value='a')
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
     def test_dont_match(self, *args):
         call_command('cli', 'charmodel', 'delete', filter=['field=BAR'], stdout=self.stdout)
         self.assertEqual(1, models.CharModel.objects.count())
 
-    @patch('__builtin__.raw_input', return_value='a')
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
     def test_match(self, *args):
         call_command('cli', 'charmodel', 'delete', filter=['field=FOO'], stdout=self.stdout)
         self.assertEqual(0, models.CharModel.objects.count())
@@ -167,3 +172,83 @@ class AddTest(TestCase):
         field = ['field=%i' % obj.id]
         call_command('cli', 'manytomanymodel', 'add', field=field, stdout=self.stdout)
         self.assertEqual(1, models.ManyToManyModel.objects.count())
+
+
+class UpdateAnswerTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+        self.obj = models.CharModel.objects.create(field='FOO')
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='y')
+    def test_answer_yes(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], stdout=self.stdout)
+        self.assertEqual('BAR', models.CharModel.objects.get().field)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='n')
+    def test_answer_no(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], stdout=self.stdout)
+        self.assertEqual('FOO', models.CharModel.objects.get().field)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='')
+    def test_answer_empty(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], stdout=self.stdout)
+        self.assertEqual('FOO', models.CharModel.objects.get().field)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
+    def test_answer_all(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], stdout=self.stdout)
+        self.assertEqual('BAR', models.CharModel.objects.get().field)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='c')
+    def test_answer_cancel(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], stdout=self.stdout)
+        self.assertEqual('FOO', models.CharModel.objects.get().field)
+
+    def test_noinput(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], noinput=True, stdout=self.stdout)
+        self.assertEqual('BAR', models.CharModel.objects.get().field)
+
+
+class UpdateFilterTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+        self.obj = models.CharModel.objects.create(field='FOO')
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
+    def test_dont_match(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], filter=['field=BAR'], stdout=self.stdout)
+        self.assertEqual('FOO', models.CharModel.objects.get().field)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
+    def test_match(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['field=BAR'], filter=['field=FOO'], stdout=self.stdout)
+        self.assertEqual('BAR', models.CharModel.objects.get().field)
+
+
+class DescribeTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+
+    def test_char(self):
+        call_command('cli', 'charmodel', 'describe', stdout=self.stdout)
+
+    def test_integer(self):
+        call_command('cli', 'integermodel', 'describe', stdout=self.stdout)
+
+    def test_text(self):
+        call_command('cli', 'textmodel', 'describe', stdout=self.stdout)
+
+    def test_boolean(self):
+        call_command('cli', 'booleanmodel', 'describe', stdout=self.stdout)
+
+    def test_date(self):
+        call_command('cli', 'datemodel', 'describe', stdout=self.stdout)
+
+    def test_datetime(self):
+        call_command('cli', 'datetimemodel', 'describe', stdout=self.stdout)
+
+    def test_foreignkey(self):
+        call_command('cli', 'foreignkeymodel', 'describe', stdout=self.stdout)
+
+    def test_manytomany(self):
+        call_command('cli', 'manytomanymodel', 'describe', stdout=self.stdout)

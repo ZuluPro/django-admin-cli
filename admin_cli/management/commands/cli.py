@@ -21,7 +21,11 @@ ACTIONS = ('list', 'delete', 'add', 'update', 'describe')
 FACTORY = RequestFactory(user=AnonymousUser())
 FALSE_REQ = FACTORY.get('')
 FALSE_REQ.user = AnonymousUser()
-unicode = str if six.PY3 else unicode
+if six.PY3:  # pragma: no cover
+    unicode = str
+    raw_input = input
+else:  # pragma: no cover
+    raw_input = raw_input
 
 
 class Command(BaseCommand):

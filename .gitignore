@@ -8,3 +8,4 @@ dist/
 *.DS_Store
 .idea/
 .coverage
+coverage_html_report

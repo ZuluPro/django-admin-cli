@@ -2,6 +2,13 @@
 [run]
 branch = True
 source = admin_cli
+omit =
+    admin_cli/tests.py
+    admin_cli/models.py
+    admin_cli/views.py
+    admin_cli/migrations*
+    admin_cli/management/__init__.py
+    admin_cli/management/commands/__init__.py
 
 [report]
 # Regexes for lines to exclude from consideration
