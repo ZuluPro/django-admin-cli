@@ -19,45 +19,64 @@ class ListTest(TestCase):
     def setUp(self):
         self.stdout = StringIO()
 
-    def test_list_char(self):
+    def test_char(self):
         models.CharModel.objects.create(field='FOO')
         call_command('cli', 'charmodel', 'list', stdout=self.stdout)
 
-    def test_list_integer(self):
+    def test_integer(self):
         models.IntegerModel.objects.create(field=42)
         call_command('cli', 'integermodel', 'list', stdout=self.stdout)
 
-    def test_list_text(self):
+    def test_text(self):
         models.TextModel.objects.create(field='FOO')
         call_command('cli', 'textmodel', 'list', stdout=self.stdout)
 
-    def test_list_boolean(self):
+    def test_boolean(self):
         models.BooleanModel.objects.create(field=True)
         call_command('cli', 'booleanmodel', 'list', stdout=self.stdout)
 
-    def test_list_date(self):
+    def test_date(self):
         models.DateModel.objects.create(field=now().date())
         call_command('cli', 'datemodel', 'list', stdout=self.stdout)
 
-    def test_list_datetime(self):
+    def test_datetime(self):
         models.DateTimeModel.objects.create(field=now())
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
-    def test_list_foreignkey(self):
+    def test_foreignkey(self):
         fk = models.CharModel.objects.create(field='FOO')
         models.ForeignKeyModel.objects.create(field=fk)
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
-    def test_list_manytomany(self):
+    def test_manytomany(self):
         m2m = models.CharModel.objects.create(field='FOO')
         ins = models.ManyToManyModel.objects.create()
         ins.field.add(m2m)
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
-    def test_list_str(self):
-        fk = models.CharModel.objects.create(field='FOO')
-        models.ForeignKeyModel.objects.create(field=fk)
-        call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
+
+class ListFieldTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+        models.TestModel.objects.create(field1='FOO', field2=42, no_verbose=6)
+
+    def test_str(self):
+        call_command('cli', 'testmodel', 'list', field=['__str__'], stdout=self.stdout)
+
+    def test_unicode(self):
+        call_command('cli', 'testmodel', 'list', field=['__unicode__'], stdout=self.stdout)
+
+    def test_model_method(self):
+        call_command('cli', 'testmodel', 'list', field=['get_double'], stdout=self.stdout)
+
+    def test_modeladmin_method_without_description(self):
+        call_command('cli', 'testmodel', 'list', field=['method_without_description'], stdout=self.stdout)
+
+    def test_modeladmin_method_with_description(self):
+        call_command('cli', 'testmodel', 'list', field=['method_with_description'], stdout=self.stdout)
+
+    def test_undefined_field(self):
+        call_command('cli', 'testmodel', 'list', field=['bad_field'], stdout=self.stdout)
 
 
 class DeleteAnswerTest(TestCase):
@@ -173,6 +192,10 @@ class AddTest(TestCase):
         call_command('cli', 'manytomanymodel', 'add', field=field, stdout=self.stdout)
         self.assertEqual(1, models.ManyToManyModel.objects.count())
 
+    def test_unknow_field(self):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'charmodel', 'add', field=['bad_field=FOO'], stdout=self.stdout)
+
 
 class UpdateAnswerTest(TestCase):
     def setUp(self):
@@ -212,6 +235,7 @@ class UpdateAnswerTest(TestCase):
 class UpdateFilterTest(TestCase):
     def setUp(self):
         self.stdout = StringIO()
+        self.stderr = StringIO()
         self.obj = models.CharModel.objects.create(field='FOO')
 
     @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
@@ -223,6 +247,11 @@ class UpdateFilterTest(TestCase):
     def test_match(self, *args):
         call_command('cli', 'charmodel', 'update', field=['field=BAR'], filter=['field=FOO'], stdout=self.stdout)
         self.assertEqual('BAR', models.CharModel.objects.get().field)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='a')
+    def test_unknow_field(self, *args):
+        call_command('cli', 'charmodel', 'update', field=['bad_field=BAR'], filter=['field=FOO'], stdout=self.stdout, stderr=self.stderr)
+        self.assertEqual('FOO', models.CharModel.objects.get().field)
 
 
 class DescribeTest(TestCase):
@@ -252,3 +281,6 @@ class DescribeTest(TestCase):
 
     def test_manytomany(self):
         call_command('cli', 'manytomanymodel', 'describe', stdout=self.stdout)
+
+    def test_testmodel(self):
+        call_command('cli', 'testmodel', 'describe', stdout=self.stdout)

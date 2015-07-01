@@ -3,9 +3,10 @@ django_admin_cli.egg-info/
 build/
 dist/
 .tox/
-*.py[co]
+*.py[cod]
 *.sw[po]
 *.DS_Store
 .idea/
 .coverage
 coverage_html_report
+__pycache__/

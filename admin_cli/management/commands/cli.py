@@ -70,8 +70,7 @@ class Command(BaseCommand):
             name = modelfield.verbose_name
         elif hasattr(modeladmin, field):
             admin_attr = getattr(modeladmin, field)
-            if hasattr(admin_attr, 'short_description'):
-                name = admin_attr.short_description
+            name = admin_attr.short_description if hasattr(admin_attr, 'short_description') else field
         else:
             name = field
         return name.capitalize()
@@ -79,6 +78,8 @@ class Command(BaseCommand):
     def _get_field_value(self, modeladmin, field, obj):
         if field.startswith('__'):
             value = getattr(obj, field)()
+        elif django.VERSION < (1, 7) and field in obj._meta.get_all_field_names() and isinstance(obj._meta.get_field(field), models.ForeignKey):  # pragma: no cover
+            value = getattr(obj, obj._meta.get_field(field).attname)
         elif hasattr(modeladmin, field):
             value = getattr(modeladmin, field)
         elif hasattr(obj, field):
@@ -92,7 +93,10 @@ class Command(BaseCommand):
         else:
             value = 'N/A'
         if hasattr(value, '__call__'):
-            value = value(obj)
+            try:
+                value = value(obj)
+            except TypeError:
+                value = value()
         try:
             value = str(value).replace('\n', '')
             value = striptags(value)
@@ -195,12 +199,13 @@ class Command(BaseCommand):
 
     def _get_actions(self, modeladmin):
         columns = ('Name', 'Description')
-        row_template = '{:30} {:30}'
+        row_template = '{!s:30} {!s:30}'
         self.stdout.write('ACTIONS:')
         self.stdout.write(row_template.format(*columns))
-        for action in modeladmin.actions:
+        for name, action_details in modeladmin.get_actions(FALSE_REQ).items():
+            obj, name, verbose = action_details
             self.stdout.write(row_template.format(
-                action, getattr(modeladmin, action).short_description))
+                name, getattr(obj, 'short_description', '')))
 
     def handle(self, *args, **opts):
         model_name = opts['model'][0] if django.VERSION >= (1, 8) else args[0]
@@ -221,7 +226,6 @@ class Command(BaseCommand):
         elif action == 'update':
             fields_dict = dict([f.split('=') for f in fields])
             filters_dict = dict([f.split('=') for f in filters])
-            self._list(modeladmin, fields, filters_dict)
             self._update(modeladmin, fields_dict, filters_dict, confirm)
         elif action == 'describe':
             self._describe(modeladmin)

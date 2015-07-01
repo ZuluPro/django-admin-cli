@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             name='BooleanModel',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('field', models.BooleanField()),
+                ('field', models.BooleanField(default=False)),
             ],
         ),
         migrations.CreateModel(
@@ -57,6 +57,15 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('field', models.ManyToManyField(to='testapp.CharModel')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='TestModel',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('field1', models.CharField(max_length=10, verbose_name=b'Field #1')),
+                ('field2', models.IntegerField(verbose_name=b'Field #2')),
+                ('no_verbose', models.IntegerField()),
             ],
         ),
         migrations.CreateModel(
