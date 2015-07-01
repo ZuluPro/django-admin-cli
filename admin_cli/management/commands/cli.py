@@ -20,6 +20,7 @@ MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
 ACTIONS = ('list', 'delete', 'add', 'update', 'describe')
 FACTORY = RequestFactory(user=AnonymousUser())
 FALSE_REQ = FACTORY.get('')
+FALSE_REQ.user = AnonymousUser()
 unicode = str if six.PY3 else unicode
 
 

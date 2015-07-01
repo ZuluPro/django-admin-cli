@@ -33,6 +33,7 @@ settings.configure(
     ROOT_URLCONF='testapp.urls',
     SECRET_KEY="it's a secret to everyone",
     SITE_ID=1,
+    SHORT_DATETIME_FORMAT='m/d/Y-H:s',
 )
 
 
