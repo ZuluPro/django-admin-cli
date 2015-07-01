@@ -18,7 +18,9 @@ env:
 
 install:
   - pip install $DJANGO_PACKAGE --use-mirrors
+  - pip install coveralls
 
 script:
-  - python setup.py test
+  - coverage run setup.py test
 # - tox -e $TOX_ENV
+after_success: coveralls
