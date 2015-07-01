@@ -49,9 +49,16 @@ class ListTest(TestCase):
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
     def test_manytomany(self):
-        m2m = models.CharModel.objects.create(field='FOO')
+        m2m1 = models.CharModel.objects.create(field='FOO')
+        m2m2 = models.CharModel.objects.create(field='FOO')
         ins = models.ManyToManyModel.objects.create()
-        ins.field.add(m2m)
+        # Try empty
+        call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
+        # Try with 1
+        ins.field.add(m2m1)
+        call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
+        # Try with 2
+        ins.field.add(m2m2)
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
 
@@ -191,6 +198,14 @@ class AddTest(TestCase):
         field = ['field=%i' % obj.id]
         call_command('cli', 'manytomanymodel', 'add', field=field, stdout=self.stdout)
         self.assertEqual(1, models.ManyToManyModel.objects.count())
+
+    def test_manytomanyseveral(self):
+        obj1 = models.CharModel.objects.create(field='FOO')
+        obj2 = models.CharModel.objects.create(field='BAR')
+        field = ['field=%i,%i' % (obj1.id, obj2.id)]
+        call_command('cli', 'manytomanymodel', 'add', field=field, stdout=self.stdout)
+        self.assertEqual(1, models.ManyToManyModel.objects.count())
+        self.assertEqual(2, models.ManyToManyModel.objects.get().field.count())
 
     def test_unknow_field(self):
         with self.assertRaises(CommandError):
