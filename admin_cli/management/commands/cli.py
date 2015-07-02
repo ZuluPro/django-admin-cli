@@ -73,7 +73,8 @@ class Command(BaseCommand):
         :param field: Name of attribute, example ``'__str__'`` or ``'id'``
         :type field: ``str``
 
-        :returns: :class:`admin.ModelAdmin` or :class:`models.Model`'s attribute'
+        :returns: :class:`admin.ModelAdmin` or :class:`models.Model`'s
+                  attribute'
         """
         if hasattr(modeladmin, field):
             obj = getattr(modeladmin, field)
@@ -98,7 +99,8 @@ class Command(BaseCommand):
         """
         field_obj = self._get_field_object(modeladmin, field)
         if isinstance(field_obj, models.CharField):
-            return min(30, max(field_obj.max_length+1, len(field_obj.verbose_name)))
+            return min(30, max(field_obj.max_length+1,
+                       len(field_obj.verbose_name)))
         elif isinstance(field_obj, models.BooleanField):
             return max(6, len(self._get_field_name(modeladmin, field))+1)
         elif isinstance(field_obj, models.DateTimeField):
@@ -128,7 +130,8 @@ class Command(BaseCommand):
             name = modelfield.verbose_name
         elif hasattr(modeladmin, field):
             admin_attr = getattr(modeladmin, field)
-            name = admin_attr.short_description if hasattr(admin_attr, 'short_description') else field
+            name = admin_attr.short_description \
+                if hasattr(admin_attr, 'short_description') else field
         else:
             name = field
         return name.capitalize()
@@ -149,10 +152,13 @@ class Command(BaseCommand):
         :returns: Value of attribute, called if callable
         :rtype: Trying ``str``
         """
+        is_django16_fk = django.VERSION < (1, 7) and \
+            field in obj._meta.get_all_field_names() and \
+            isinstance(obj._meta.get_field(field), models.ForeignKey)
         if field.startswith('__'):
             value = getattr(obj, field)()
         # Django 1.6 doesn't support get empty FK
-        elif django.VERSION < (1, 7) and field in obj._meta.get_all_field_names() and isinstance(obj._meta.get_field(field), models.ForeignKey):  # pragma: no cover
+        elif is_django16_fk:
             value = getattr(obj, obj._meta.get_field(field).attname)
         elif hasattr(modeladmin, field):
             value = getattr(modeladmin, field)
@@ -309,7 +315,8 @@ class Command(BaseCommand):
                 obj = modeladmin.model.objects.get(**filtr)
                 self.stdout.write("Updated '%s'" % obj)
             except Exception as err:
-                self.stderr.write("%s: %s" % (err.__class__.__name__, err.args[0]))
+                msg = "%s: %s" % (err.__class__.__name__, err.args[0])
+                self.stderr.write(msg)
 
     def _describe(self, modeladmin):
         """
@@ -319,17 +326,22 @@ class Command(BaseCommand):
         :param modeladmin: ModelAdmin to describe
         :type modeladmin: :class:`admin.ModelAdmin`
         """
-        columns = ('Name (Verbose)', 'Type', 'Null', 'Blank', 'Choices', 'Default', 'Help text')
+        instance = modeladmin.model()
+        columns = ('Name (Verbose)', 'Type', 'Null', 'Blank', 'Choices',
+                   'Default', 'Help text')
         row_template = '{:30} {:15} {:<5} {:<5} {:<20} {:<15} {:30}'
         self.stdout.write('MODEL:')
         self.stdout.write(row_template.format(*columns))
         for field in modeladmin.model._meta.fields:
+            field_type = field.__class__.__name__ \
+                if 'django.db.models' in field.__class__.__module__ \
+                else '%s.%s' % (field.__class__.__module__,
+                                field.__class__.__name__)
             self.stdout.write(row_template.format(
                 ('%s (%s)' % (field.name, field.verbose_name)),
-                field.__class__.__name__ if 'django.db.models' in field.__class__.__module__ else '%s.%s' % (field.__class__.__module__, field.__class__.__name__),
-                bool(field.null), bool(field.blank),
+                field_type, bool(field.null), bool(field.blank),
                 str(field.choices)[:20],
-                self._get_field_value(modeladmin, field.name, modeladmin.model()),
+                self._get_field_value(modeladmin, field.name, instance),
                 field.help_text))
         if modeladmin.actions:
             self.stdout.write('\n')
