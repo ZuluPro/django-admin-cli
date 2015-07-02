@@ -2,6 +2,10 @@ from django.contrib import admin
 from testapp import models
 
 
+class CharModelAdmin(admin.ModelAdmin):
+    list_display = ('id', 'field')
+
+
 def function_does_nothing(modeladmin, request, queryset):
     pass
 
@@ -20,7 +24,7 @@ class TestModelAdmin(admin.ModelAdmin):
         pass
 
 
-admin.site.register(models.CharModel)
+admin.site.register(models.CharModel, CharModelAdmin)
 admin.site.register(models.IntegerModel)
 admin.site.register(models.TextModel)
 admin.site.register(models.BooleanModel)

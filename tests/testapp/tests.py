@@ -62,6 +62,33 @@ class ListTest(TestCase):
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
 
+class ListOrderTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+
+    def test_simple_order(self):
+        models.CharModel.objects.create(field='FOO2')
+        models.CharModel.objects.create(field='FOO1')
+        models.CharModel.objects.create(field='FOO3')
+        call_command('cli', 'charmodel', 'list', order=['field'], stdout=self.stdout)
+        self.stdout.seek(0)
+        lines = self.stdout.readlines()[1:]
+        self.assertIn('FOO1', lines[0])
+        self.assertIn('FOO2', lines[1])
+        self.assertIn('FOO3', lines[2])
+
+    def test_revert_order(self):
+        models.CharModel.objects.create(field='FOO2')
+        models.CharModel.objects.create(field='FOO1')
+        models.CharModel.objects.create(field='FOO3')
+        call_command('cli', 'charmodel', 'list', order=['~field'], stdout=self.stdout)
+        self.stdout.seek(0)
+        lines = self.stdout.readlines()[1:]
+        self.assertIn('FOO3', lines[0])
+        self.assertIn('FOO2', lines[1])
+        self.assertIn('FOO1', lines[2])
+
+
 class ListFieldTest(TestCase):
     def setUp(self):
         self.stdout = StringIO()

@@ -39,6 +39,9 @@ class Command(BaseCommand):
         parser.add_argument('-F', '--filter', type=str, action='append',
                             help="Field to filter in Django's lookup form, \
                             example: 'id=1' or 'name__startswith=A'")
+        parser.add_argument('-o', '--order', type=str, action='append',
+                            help="Field used to order, use '~' for revert \
+                            example: 'name' or '~name'")
         parser.add_argument('-i', '--noinput', action='store_true',
                             help="Tells Django to NOT prompt the user for \
                             input of any kind.")
@@ -177,7 +180,7 @@ class Command(BaseCommand):
             pass
         return value
 
-    def _list(self, modeladmin, fields=[], filters={}):
+    def _list(self, modeladmin, fields=[], filters={}, orders=[]):
         """
         Write instances filtered and with chosen attributes.
 
@@ -190,6 +193,9 @@ class Command(BaseCommand):
 
         :param filters: Lookups for filters
         :type filters: ``dict``
+
+        :param orders: Row ordering
+        :type orders: ``list`` of ``str``
         """
         fields = fields or modeladmin.list_display
         field_names = [self._get_field_name(modeladmin, f) for f in fields]
@@ -198,7 +204,8 @@ class Command(BaseCommand):
             width = self._get_field_width(modeladmin, field)
             row_template += '{:%i}' % width
         self.stdout.write(row_template.format(*field_names))
-        for obj in modeladmin.model.objects.filter(**filters):
+        queryset = modeladmin.model.objects.filter(**filters).order_by(*orders)
+        for obj in queryset:
             values = [self._get_field_value(modeladmin, field, obj)
                       for field in fields]
             row = row_template.format(*values)
@@ -349,12 +356,13 @@ class Command(BaseCommand):
         action = opts['action'] if django.VERSION >= (1, 8) else args[1]
         fields = opts.get('field', []) or []
         filters = opts.get('filter', []) or []
+        orders = [o.replace('~', '-') for o in (opts.get('order', []) or [])]
         confirm = not opts.get('noinput', False)
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
         if action == 'list':
             filters_dict = dict([f.split('=') for f in filters])
-            self._list(modeladmin, fields, filters_dict)
+            self._list(modeladmin, fields, filters_dict, orders)
         elif action == 'delete':
             filters_dict = dict([f.split('=') for f in filters])
             self._delete(modeladmin, filters_dict, confirm)
