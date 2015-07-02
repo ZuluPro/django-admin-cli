@@ -8,6 +8,10 @@ Django Admin CLI
 .. image:: https://coveralls.io/repos/ZuluPro/django-admin-cli/badge.svg?branch=master
    :target: https://coveralls.io/r/ZuluPro/django-admin-cli?branch=master
 
+.. image:: https://landscape.io/github/ZuluPro/django-admin-cli/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/ZuluPro/django-admin-cli/master
+   :alt: Code Health
+
 Django third app for manage you models in command line environment.
 
 .. contents:: **Table of content**
@@ -105,3 +109,27 @@ Delete an instance
   $ ./manage.py cli site delete -F domain=mysite.org
   Delete 'mysite.org' ? [Yes|No|All|Cancel] y
   Deleted 'mysite.org'
+
+Testing
+=======
+
+All tests are simply launched by:
+
+::
+
+  python setup.py test
+
+Online resources
+================
+
+* `Code repository`_
+* `Documentation`_
+* `Travis CI server`_
+* `Coveralls report`_
+* `Landscape`
+
+.. _`Code repository`: https://github.com/ZuluPro/django-admin-cli
+.. _`Documentation`: https://github.com/ZuluPro/django-admin-cli#id3
+.. _`Coveralls report`: https://coveralls.io/r/ZuluPro/django-admin-cli?branch=master
+.. _`Travis CI server`: https://travis-ci.org/ZuluPro/django-admin-cli
+.. _`Landscape`: https://landscape.io/github/ZuluPro/django-admin-cli/
