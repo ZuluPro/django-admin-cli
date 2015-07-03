@@ -41,6 +41,7 @@ It is supposed to allow user to make same things as in Admin site:
   * Filtering with Django's Lookup
 
 - Describe model and modeladmin
+- System user restriction (Read/Write)
 - Use admin actions (further)
 
 Install
@@ -110,6 +111,24 @@ Delete an instance
   Delete 'mysite.org' ? [Yes|No|All|Cancel] y
   Deleted 'mysite.org'
 
+Resctrict access to users
+-------------------------
+
+Put a ``dict`` named ``ADMIN_CLI_USERS`` in ``settings.py``. It must have
+the following format:
+
+::
+
+  ADMIN_CLI_USERS = {
+    'login': 'RW',
+  }
+
+Keys are UID or username, values are rights 'R' for read, 'W' for
+write/update/delete and 'RW' for both.
+
+By default ``ADMIN_CLI_USERS`` is ``{}`` which allows all users to make
+all operations.
+
 Testing
 =======
 
@@ -126,7 +145,7 @@ Online resources
 * `Documentation`_
 * `Travis CI server`_
 * `Coveralls report`_
-* `Landscape`
+* `Landscape`_
 
 .. _`Code repository`: https://github.com/ZuluPro/django-admin-cli
 .. _`Documentation`: https://github.com/ZuluPro/django-admin-cli#id3

@@ -1,3 +1,4 @@
+import os
 from mock import patch
 try:
     from StringIO import StringIO
@@ -61,6 +62,11 @@ class ListTest(TestCase):
         ins.field.add(m2m2)
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'W'})
+    def test_no_access(self, *args):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'charmodel', 'list', stdout=self.stdout)
+
 
 class ListOrderTest(TestCase):
     def setUp(self):
@@ -111,6 +117,16 @@ class ListFieldTest(TestCase):
 
     def test_undefined_field(self):
         call_command('cli', 'testmodel', 'list', field=['bad_field'], stdout=self.stdout)
+
+
+class DeleteTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'R'})
+    def test_no_access(self, *args):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'charmodel', 'delete', stdout=self.stdout)
 
 
 class DeleteAnswerTest(TestCase):
@@ -238,6 +254,21 @@ class AddTest(TestCase):
         with self.assertRaises(CommandError):
             call_command('cli', 'charmodel', 'add', field=['bad_field=FOO'], stdout=self.stdout)
 
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'R'})
+    def test_no_access(self, *args):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'charmodel', 'add', field=['field=FOO'], stdout=self.stdout)
+
+
+class UpdateTest(TestCase):
+    def setUp(self):
+        self.stdout = StringIO()
+
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'R'})
+    def test_no_access(self, *args):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'charmodel', 'update', stdout=self.stdout)
+
 
 class UpdateAnswerTest(TestCase):
     def setUp(self):
@@ -326,3 +357,58 @@ class DescribeTest(TestCase):
 
     def test_testmodel(self):
         call_command('cli', 'testmodel', 'describe', stdout=self.stdout)
+
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'W'})
+    def test_no_access(self, *args):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'charmodel', 'describe', stdout=self.stdout)
+
+
+class UserHasAccessTest(TestCase):
+    def setUp(self):
+        self.command = Command()
+
+    def test_default_access(self):
+        self.command._user_has_access('R')
+        self.command._user_has_access('W')
+
+    @patch('admin_cli.settings.USERS', {})
+    def test_empty_setting_access(self, *args):
+        self.command._user_has_access('R')
+        self.command._user_has_access('W')
+
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'R'})
+    def test_user_read_access(self, *args):
+        self.command._user_has_access('R')
+
+    @patch('admin_cli.settings.USERS', {os.getlogin(): 'W'})
+    def test_user_no_read_access(self, *args):
+        with self.assertRaises(CommandError):
+            self.command._user_has_access('R')
+
+    @patch('admin_cli.settings.USERS', {os.getuid(): 'R'})
+    def test_uid_read_access(self, *args):
+        self.command._user_has_access('R')
+
+    @patch('admin_cli.settings.USERS', {os.getuid(): 'W'})
+    def test_uid_no_read_access(self, *args):
+        with self.assertRaises(CommandError):
+            self.command._user_has_access('R')
+
+    @patch('admin_cli.settings.USERS', {'FOOUSER': 'R'})
+    def test_user_not_found(self, *args):
+        with self.assertRaises(CommandError):
+            self.command._user_has_access('R')
+
+
+class CommandGetModelTest(TestCase):
+    def setUp(self):
+        self.command = Command()
+
+    def test_existing(self):
+        charmodel = self.command._get_model('charmodel')
+        self.assertEqual(charmodel, models.CharModel)
+
+    def test_non_existing(self):
+        with self.assertRaises(CommandError):
+            self.command._get_model('FooModel')

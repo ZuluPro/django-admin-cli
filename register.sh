@@ -1,7 +1,7 @@
 #!/bin/bash
 # Package uploading to PyPI
 
-version=$(shell python setup.py --version)
+version=$(python setup.py --version)
 git rev-parse ${version} &> /dev/null
 if [[ "$?" -eq 0 ]] ; then
     echo "Version '${version}' already exists."

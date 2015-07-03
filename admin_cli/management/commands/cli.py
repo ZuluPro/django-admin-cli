@@ -1,6 +1,7 @@
 """
 Group management commands module.
 """
+import os
 from datetime import datetime, date
 
 import django
@@ -14,6 +15,7 @@ from django.utils import six
 from django.template.defaultfilters import striptags
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
+from admin_cli import settings as cli_settings
 
 REGISTRY = admin.site._registry
 MODEL_NAMES = [m._meta.model_name for m in REGISTRY]
@@ -158,7 +160,7 @@ class Command(BaseCommand):
         if field.startswith('__'):
             value = getattr(obj, field)()
         # Django 1.6 doesn't support get empty FK
-        elif is_django16_fk:
+        elif is_django16_fk:  # pragma: no cover
             value = getattr(obj, obj._meta.get_field(field).attname)
         elif hasattr(modeladmin, field):
             value = getattr(modeladmin, field)
@@ -363,6 +365,31 @@ class Command(BaseCommand):
             self.stdout.write(row_template.format(
                 name, getattr(obj, 'short_description', '')))
 
+    def _user_has_access(self, mode):
+        """
+        Checks if system user has access defined in ``django.conf.settings``.
+
+        :param mode: ``'R'`` or ``'W'``
+        :type mode: str
+
+        :returns: True if user has access
+        :rtype: ``bool``
+
+        raises: CommandError: If user hasn't access or isn't registered
+        """
+        if not cli_settings.USERS:
+            return True
+        cur_user = os.getlogin()
+        cur_uid = os.getuid()
+        for key, value in cli_settings.USERS.items():
+            if str(key) in (cur_user, str(cur_uid)):
+                if mode.lower() in value.lower():
+                    return True
+                raise CommandError("User '%s' (%s) hasn't '%s' access" % (
+                                   cur_user, cur_uid, mode))
+        raise CommandError("User '%s' (%s) isn't registered" % (
+                           cur_user, cur_uid))
+
     def handle(self, *args, **opts):
         model_name = opts['model'][0] if django.VERSION >= (1, 8) else args[0]
         action = opts['action'] if django.VERSION >= (1, 8) else args[1]
@@ -373,16 +400,21 @@ class Command(BaseCommand):
         model = self._get_model(model_name)
         modeladmin = REGISTRY[model]
         if action == 'list':
+            self._user_has_access('R')
             filters_dict = dict([f.split('=') for f in filters])
             self._list(modeladmin, fields, filters_dict, orders)
         elif action == 'delete':
+            self._user_has_access('W')
             filters_dict = dict([f.split('=') for f in filters])
             self._delete(modeladmin, filters_dict, confirm)
         elif action == 'add':
+            self._user_has_access('W')
             self._add(modeladmin, fields)
         elif action == 'update':
+            self._user_has_access('W')
             fields_dict = dict([f.split('=') for f in fields])
             filters_dict = dict([f.split('=') for f in filters])
             self._update(modeladmin, fields_dict, filters_dict, confirm)
         elif action == 'describe':
+            self._user_has_access('R')
             self._describe(modeladmin)
