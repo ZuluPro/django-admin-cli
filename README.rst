@@ -3,7 +3,10 @@ Django Admin CLI
 ================
 
 .. image :: https://travis-ci.org/ZuluPro/django-admin-cli.svg?branch=master
-    :target: https://travis-ci.org/ZuluPro/django-admin-cli
+   :target: https://travis-ci.org/ZuluPro/django-admin-cli
+    
+.. image:: https://coveralls.io/repos/ZuluPro/django-admin-cli/badge.svg?branch=master
+   :target: https://coveralls.io/r/ZuluPro/django-admin-cli?branch=master
 
 Django third app for manage you models in command line environment.
 
