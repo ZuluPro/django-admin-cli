@@ -1,5 +1,5 @@
 """Django third app for manage you models in command line environment."""
-__version__ = '0.0.2'
+__version__ = '0.1.0'
 __license__ = 'BSD License'
 
 __author__ = 'ZuluPro (Anthony Monthe)'
