@@ -10,3 +10,4 @@ dist/
 .coverage
 coverage_html_report
 __pycache__/
+docs/_build
