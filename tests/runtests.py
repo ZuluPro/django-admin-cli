@@ -11,6 +11,7 @@ parent = os.path.dirname(here)
 sys.path[0:0] = [here, parent]
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MEDIA_ROOT = os.path.join(BASE_DIR, 'tests/media')
 INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.sitemaps',
@@ -26,6 +27,7 @@ INSTALLED_APPS = (
 
 
 settings.configure(
+    MEDIA_ROOT=MEDIA_ROOT,
     MIDDLEWARE_CLASSES=(),
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}},
     INSTALLED_APPS=INSTALLED_APPS,

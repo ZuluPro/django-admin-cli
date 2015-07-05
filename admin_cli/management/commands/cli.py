@@ -6,6 +6,7 @@ from datetime import datetime, date
 
 import django
 from django.core.management.base import BaseCommand, CommandError
+from django.core.files import File
 from django.contrib import admin
 from django.db import models
 from django.conf import settings
@@ -47,6 +48,8 @@ class Command(BaseCommand):
         parser.add_argument('-i', '--noinput', action='store_true',
                             help="Tells Django to NOT prompt the user for \
                             input of any kind.")
+        parser.add_argument('-I', '--file', type=str, action='append',
+                            help="File to use as a field for add/update.")
 
     def _get_model(self, name):
         """
@@ -246,7 +249,7 @@ class Command(BaseCommand):
             obj.delete()
             self.stdout.write("Deleted '%s'" % obj)
 
-    def _add(self, modeladmin, fields):
+    def _add(self, modeladmin, fields, filefields):
         """
         Update one or more fields of all instances filtered.
 
@@ -256,7 +259,10 @@ class Command(BaseCommand):
         :param fields: Fields to defines
         :type fields: ``dict``
 
-        :raises CommandError: If data is unvalid
+        :param filefields: File fields to update
+        :type filefields: ``dict``
+
+        :raises CommandError: If data is unvalid or files are unfoundable
         """
         instance = modeladmin.model()
         initial = dict([
@@ -273,9 +279,15 @@ class Command(BaseCommand):
                 continue
             if isinstance(modelfield, models.ManyToManyField):
                 data[field_name] = value.split(',')
+        files = {}
+        for filename, path in filefields.items():
+            try:
+                files[filename] = File(open(path, 'rb'))
+            except IOError as err:
+                raise CommandError(err.args[0])
         form_class = modeladmin.add_form if hasattr(modeladmin, 'add_form') \
             else modeladmin.get_form(FALSE_REQ)
-        form = form_class(data=data)
+        form = form_class(data=data, files=files)
         if form.is_valid():
             obj = form.save()
             self.stdout.write("Created '%s'" % obj)
@@ -287,7 +299,7 @@ class Command(BaseCommand):
             ])
             raise CommandError(error_msg)
 
-    def _update(self, modeladmin, fields, filters={}, confirm=True):
+    def _update(self, modeladmin, fields, filters, filefields, confirm=True):
         """
         Update one or more fields of all instances filtered.
 
@@ -300,9 +312,19 @@ class Command(BaseCommand):
         :param filters: Lookups for filters
         :type filters: ``dict``
 
+        :param filefields: File fields to update
+        :type filefields: ``dict``
+
         :param confirm: Ask confirmation before make operation
         :type confirm: ``bool``
+
+        :raises CommandError: If data is unvalid or files are unfoundable
         """
+        for filename, path in filefields.items():
+            try:
+                fields[filename] = File(open(path, 'rb'))
+            except IOError as err:
+                raise CommandError(err.args[0])
         for obj in modeladmin.model.objects.filter(**filters):
             if confirm:
                 res = raw_input("Update '%s' ? [Yes|No|All|Cancel] " % obj)\
@@ -397,6 +419,7 @@ class Command(BaseCommand):
         action = opts['action'] if django.VERSION >= (1, 8) else args[1]
         fields = opts.get('field', []) or []
         filters = opts.get('filter', []) or []
+        filefields = opts.get('file', []) or []
         orders = [o.replace('~', '-') for o in (opts.get('order', []) or [])]
         confirm = not opts.get('noinput', False)
         model = self._get_model(model_name)
@@ -411,12 +434,15 @@ class Command(BaseCommand):
             self._delete(modeladmin, filters_dict, confirm)
         elif action == 'add':
             self._user_has_access('W')
-            self._add(modeladmin, fields)
+            filefields_dict = dict([f.split('=') for f in filefields])
+            self._add(modeladmin, fields, filefields_dict)
         elif action == 'update':
             self._user_has_access('W')
             fields_dict = dict([f.split('=') for f in fields])
             filters_dict = dict([f.split('=') for f in filters])
-            self._update(modeladmin, fields_dict, filters_dict, confirm)
+            filefields_dict = dict([f.split('=') for f in filefields])
+            self._update(modeladmin, fields_dict, filters_dict,
+                         filefields_dict, confirm)
         elif action == 'describe':
             self._user_has_access('R')
             self._describe(modeladmin)

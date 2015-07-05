@@ -4,7 +4,7 @@ from django.utils.encoding import python_2_unicode_compatible
 
 ___all__ = ('CharModel', 'IntegerModel', 'TextModel', 'BooleanModel'
             'DateModel', 'DateTimeModel', 'ForeignKeyModel', 'ManyToManyModel',
-            'TestModel',)
+            'FileModel', 'TestModel',)
 
 
 class CharModel(models.Model):
@@ -37,6 +37,10 @@ class ForeignKeyModel(models.Model):
 
 class ManyToManyModel(models.Model):
     field = models.ManyToManyField(CharModel)
+
+
+class FileModel(models.Model):
+    field = models.FileField(upload_to='.')
 
 
 @python_2_unicode_compatible

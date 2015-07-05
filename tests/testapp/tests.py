@@ -62,6 +62,10 @@ class ListTest(TestCase):
         ins.field.add(m2m2)
         call_command('cli', 'datetimemodel', 'list', stdout=self.stdout)
 
+    def test_file(self):
+        models.FileModel.objects.create(field='foo')
+        call_command('cli', 'filemodel', 'list', stdout=self.stdout)
+
     @patch('admin_cli.settings.USERS', {os.getlogin(): 'W'})
     def test_no_access(self, *args):
         with self.assertRaises(CommandError):
@@ -250,6 +254,13 @@ class AddTest(TestCase):
         self.assertEqual(1, models.ManyToManyModel.objects.count())
         self.assertEqual(2, models.ManyToManyModel.objects.get().field.count())
 
+    def test_file(self):
+        call_command('cli', 'filemodel', 'add', file=['field=/etc/hosts'], stdout=self.stdout)
+
+    def test_unfound_file(self):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'filemodel', 'add', file=['field=/tmp/unfound_file'], stdout=self.stdout)
+
     def test_unknow_field(self):
         with self.assertRaises(CommandError):
             call_command('cli', 'charmodel', 'add', field=['bad_field=FOO'], stdout=self.stdout)
@@ -266,6 +277,18 @@ class AddTest(TestCase):
 class UpdateTest(TestCase):
     def setUp(self):
         self.stdout = StringIO()
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='y')
+    def test_file(self, *args):
+        src_file = '/etc/hosts'
+        self.obj = models.FileModel.objects.create(field='/etc/resolv.conf')
+        call_command('cli', 'filemodel', 'update', file=['field=%s' % src_file], stdout=self.stdout)
+        self.assertEqual(models.FileModel.objects.get().field.name, src_file)
+
+    @patch('admin_cli.management.commands.cli.raw_input', return_value='y')
+    def test_unfound_file(self, *args):
+        with self.assertRaises(CommandError):
+            call_command('cli', 'filemodel', 'update', file=['field=/tmp/unfound_file'], stdout=self.stdout)
 
     @patch('admin_cli.settings.USERS', {os.getlogin(): 'R'})
     def test_no_access(self, *args):
