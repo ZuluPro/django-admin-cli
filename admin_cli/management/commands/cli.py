@@ -273,7 +273,9 @@ class Command(BaseCommand):
                 continue
             if isinstance(modelfield, models.ManyToManyField):
                 data[field_name] = value.split(',')
-        form = modeladmin.get_form(FALSE_REQ)(data=data)
+        form_class = modeladmin.add_form if hasattr(modeladmin, 'add_form') \
+            else modeladmin.get_form(FALSE_REQ)
+        form = form_class(data=data)
         if form.is_valid():
             obj = form.save()
             self.stdout.write("Created '%s'" % obj)

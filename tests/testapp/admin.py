@@ -1,5 +1,5 @@
 from django.contrib import admin
-from testapp import models
+from testapp import models, forms
 
 
 class CharModelAdmin(admin.ModelAdmin):
@@ -12,6 +12,7 @@ def function_does_nothing(modeladmin, request, queryset):
 
 class TestModelAdmin(admin.ModelAdmin):
     actions = ['method_does_nothing', function_does_nothing]
+    add_form = forms.TestModelAddForm
 
     def method_without_description(self):
         return 42

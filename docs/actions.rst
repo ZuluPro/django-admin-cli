@@ -82,6 +82,13 @@ Every field must be set with ``'--field'`` (``'-f'``). ``ForeignKey`` is
 defined by their primary key's value. Same for ``ManyToManyField`` except
 it's defined by with ``','`` as separator.
 
+.. note ::
+
+    This action uses a Django Form for validate data submited by user. If
+    your ``ModelAdmin`` has ``add_form`` attribute (like ``User`` one), it will
+    be used for data validation otherwise ``ModelAdmin.get_form`` is used.
+
+
 Add an instance
 ---------------
 

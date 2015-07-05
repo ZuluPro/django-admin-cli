@@ -259,6 +259,9 @@ class AddTest(TestCase):
         with self.assertRaises(CommandError):
             call_command('cli', 'charmodel', 'add', field=['field=FOO'], stdout=self.stdout)
 
+    def test_get_add_form(self):
+        call_command('cli', 'testmodel', 'add', field=['form_field=FooBar'], stdout=self.stdout)
+
 
 class UpdateTest(TestCase):
     def setUp(self):
